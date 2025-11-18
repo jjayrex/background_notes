@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Background Notes</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            margin: 1rem;
+            background: #111;
+            color: #eee;
+        }
+
+        .status {
+            margin-bottom: 1rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+        }
+
+        .on {
+            background: #19321f;
+            color: #8fef8f;
+        }
+
+        .off {
+            background: #311818;
+            color: #ff8f8f;
+        }
+
+        pre {
+            background: #222;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            white-space: pre-wrap;
+        }
+
+        ul {
+            list-style: decimal;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        .header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-row button {
+            padding: 0.3rem 0.8rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        #clear-btn {
+            background-color: #501818;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+<div id="status" class="status off">Loading...</div>
+
+<h2>Current note</h2>
+<pre id="current-note"><em>(loading)</em></pre>
+
+<div class="header-row">
+    <h2>Saved notes</h2>
+    <button id="clear-btn">Clear saved notes</button>
+</div>
+<div id="notes-list"><p><em>(loading)</em></p></div>
+
+<script>
+    async function refreshState() {
+        try {
+            const res = await fetch('/state', {cache: 'no-store'});
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const status = document.getElementById('status');
+            if (data.recording) {
+                status.textContent = 'Recording: ON (toggle with F9)';
+                status.classList.add('on');
+                status.classList.remove('off');
+            } else {
+                status.textContent = 'Recording: OFF (toggle with F9)';
+                status.classList.add('off');
+                status.classList.remove('on');
+            }
+
+            const current = document.getElementById('current-note');
+            if (!data.current_note || data.current_note.trim() === '') {
+                current.textContent = '(empty)';
+            } else {
+                current.textContent = data.current_note;
+            }
+
+            const notesContainer = document.getElementById('notes-list');
+            notesContainer.innerHTML = '';
+            if (!data.notes || data.notes.length === 0) {
+                const p = document.createElement('p');
+                p.innerHTML = '<em>No notes yet. Press F9, type, then F9 again.</em>';
+                notesContainer.appendChild(p);
+            } else {
+                const ul = document.createElement('ul');
+                for (const note of data.notes) {
+                    const li = document.createElement('li');
+                    const pre = document.createElement('pre');
+                    pre.textContent = note;
+                    li.appendChild(pre);
+                    ul.appendChild(li);
+                }
+                notesContainer.appendChild(ul);
+            }
+        } catch (e) {}
+    }
+
+    async function clearNotes() {
+        try {
+            await fetch('/clear', {method: 'POST'});
+            await refreshState();
+        } catch (e) {}
+    }
+
+    document.getElementById('clear-btn').addEventListener('click', clearNotes);
+
+    refreshState();
+    setInterval(refreshState, 500);
+</script>
+</body>
+</html>
